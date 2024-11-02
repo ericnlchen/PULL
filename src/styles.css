@@ -1,0 +1,30 @@
+.main-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#d3-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#canvas-container {
+    width: 250px;
+    height: 250px;
+    display: flex;
+    justify-content: center;
+    image-rendering: pixelated;
+}
+
+#buffer-container {
+    width: 250px;
+    height: 250px;
+    display: flex;
+    justify-content: center;
+    image-rendering: pixelated;
+    filter: grayscale();
+}
+
+
