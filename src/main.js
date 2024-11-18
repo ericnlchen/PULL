@@ -1,11 +1,11 @@
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
 // Global settings:
-const breakingThreshold = 150;
+const breakingThreshold = 200;
 
 // Load image data into graph data structure
 const img = new Image();
-img.src = "data/dogtest-small.png";
+img.src = "data/face.png";
 
 img.onload = () => {
     // Create a canvas element
@@ -27,7 +27,8 @@ img.onload = () => {
 
     let nodes = [];
     for (let i = 0; i < img.width; i++) {
-        nodes.push({"id": `${i}`});
+        nodes.push({"id": `a-${i}`});
+        nodes.push({"id": `b-${i}`});
     }
 
     let links = [];
@@ -49,15 +50,25 @@ img.onload = () => {
 
         let distance = grey;
 
-        if (distance > breakingThreshold) {
-            continue;
+        // if (distance > breakingThreshold) {
+        //     continue;
+        // }
+
+        if (rowNum > colNum) {
+            links.push({
+                "source": `a-${colNum}`,
+                "target": `a-${rowNum}`,
+                "weight": distance
+            });
         }
 
-        links.push({
-            "source": nodes[colNum],
-            "target": nodes[rowNum],
-            "weight": distance
-        });
+        else if (rowNum < colNum) {
+            links.push({
+                "source": `b-${colNum}`,
+                "target": `b-${rowNum}`,
+                "weight": distance
+            });
+        }
     }
 
     // Set up canvas for the resulting image
@@ -77,7 +88,8 @@ img.onload = () => {
 
     // Define the simulation
     const simulation = d3.forceSimulation(nodes)
-        .force("link", d3.forceLink(links).distance(link => link.weight))
+        .force("link", d3.forceLink(links).id((d) => d.id).distance(link => link.weight))
+        // .force("charge", d3.forceManyBody().strength(10))
         .force("center", d3.forceCenter(width / 2, height / 2))
         .on("tick", ticked);
 
@@ -116,14 +128,27 @@ img.onload = () => {
                 Math.pow(link.target.x - link.source.x, 2) +
                 Math.pow(link.target.y - link.source.y, 2)
               );
-            let rowNum = parseInt(link.target.id);
-            let colNum = parseInt(link.source.id);
-            let dataIndex = 4 * (rowNum * canvas.width + colNum);
-            let gray = length;
-            data[dataIndex] = gray;
-            data[dataIndex+1] = gray;
-            data[dataIndex+2] = gray;
-            data[dataIndex+3] = 255; // alpha
+            if (link.target.id.split('-')[0] === 'a') {
+                let rowNum = parseInt(link.target.id.split('-')[1]);
+                let colNum = parseInt(link.source.id.split('-')[1]);
+                let dataIndex = 4 * (rowNum * canvas.width + colNum);
+                let gray = length;
+                data[dataIndex] = gray;
+                data[dataIndex+1] = gray;
+                data[dataIndex+2] = gray;
+                data[dataIndex+3] = 255; // alpha
+            }
+            else if (link.target.id.split('-')[0] === 'b') {
+                let rowNum = parseInt(link.target.id.split('-')[1]);
+                let colNum = parseInt(link.source.id.split('-')[1]);
+                let dataIndex = 4 * (rowNum * canvas.width + colNum);
+                let gray = length;
+                data[dataIndex] = gray;
+                data[dataIndex+1] = gray;
+                data[dataIndex+2] = gray;
+                data[dataIndex+3] = 255; // alpha
+            }
+
         })
         context.putImageData(imageData, 0, 0);
     }
