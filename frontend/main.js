@@ -5,7 +5,7 @@ const breakingThreshold = 200;
 
 // Load image data into graph data structure
 const img = new Image();
-img.src = "./data/face.png";
+img.src = "./data/dogtest-small.png";
 
 img.onload = () => {
     // Backend test
@@ -20,7 +20,7 @@ img.onload = () => {
             formData.append('image', blob, 'face.png');
 
             // Send POST
-            const response = await fetch('http://127.0.0.1:5000/api/encode', {
+            const response = await fetch('http://127.0.0.1:8000/api/encode', {
                 method: "POST",
                 body: formData,
             });
