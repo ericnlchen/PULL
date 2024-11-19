@@ -131,3 +131,5 @@ dist
 
 # data directory
 data
+
+__pycache__

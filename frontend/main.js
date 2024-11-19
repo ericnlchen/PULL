@@ -5,9 +5,32 @@ const breakingThreshold = 200;
 
 // Load image data into graph data structure
 const img = new Image();
-img.src = "data/face.png";
+img.src = "./data/face.png";
 
 img.onload = () => {
+    // Backend test
+    document.getElementById('fetch-button').addEventListener('click', async() => {
+        try {
+            // Fetch image as a Blob
+            const imgResponse = await fetch(img.src);
+            const blob = await imgResponse.blob();
+
+            // Create FormData and append the Blob
+            const formData = new FormData();
+            formData.append('image', blob, 'face.png');
+
+            // Send POST
+            const response = await fetch('http://127.0.0.1:5000/api/encode', {
+                method: "POST",
+                body: formData,
+            });
+            const result = await response.json();
+            console.log(result);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        }
+    });
+
     // Create a canvas element
     const buffer = document.createElement("canvas");
     const bufferContainer = document.getElementById("buffer-container");
