@@ -2,6 +2,8 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS, cross_origin
 import logging
 from encoder_decoder import encode, decode
+from PIL import Image
+import traceback
 
 # Configure Flask logger
 logging.basicConfig(level=logging.INFO)
@@ -17,24 +19,32 @@ def get_data():
         if 'image' not in request.files:
             return {'error': 'No image provided'}, 400
         
-        image = request.files['image']
-        image.save(f'uploaded_images/{image.filename}')
-        return {'message': f'Image {image.filename} uploaded successfully'}
+        uploaded_file = request.files['image']
 
-@app.before_request
-def log_request_info():
-    logging.info(f"Incoming request: {request.method} {request.path}")
-    logging.info(f"Headers: {request.headers}")
-    if request.method in ['POST', 'PUT', 'PATCH']:
-        try:
-            logging.info(f"Body: {request.get_data(as_text=True)}")
-        except Exception as e:
-            logging.error(f"Error reading request body: {e}")
+        image = Image.open(uploaded_file)
+        grayscale_image = image.convert('L')
+
+        return {'message': f'Image {uploaded_file.filename} uploaded successfully'}
+
+# @app.before_request
+# def log_request_info():
+#     logging.info(f"Incoming request: {request.method} {request.path}")
+#     logging.info(f"Headers: {request.headers}")
+#     if request.method in ['POST', 'PUT', 'PATCH']:
+#         try:
+#             logging.info(f"Body: {request.get_data(as_text=True)}")
+#         except Exception as e:
+#             logging.error(f"Error reading request body: {e}")
             
 @app.errorhandler(404)
 def handle_404_error(e):
     logging.warning(f"Unhandled request: {request.method} {request.path}")
     return {"error": "Not Found"}, 404
 
+@app.errorhandler(Exception)
+def handle_exception(e):
+    print("Unhandled Exception:", traceback.format_exc())
+    return {"error": "Internal Server Error"}, 500
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=8000)
