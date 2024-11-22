@@ -1,9 +1,11 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS, cross_origin
 import logging
 from encoder_decoder import encode, decode
 from PIL import Image
 import traceback
+import numpy as np
+from io import BytesIO
 
 # Configure Flask logger
 logging.basicConfig(level=logging.INFO)
@@ -13,8 +15,8 @@ logger.setLevel(logging.INFO)
 app = Flask(__name__)
 CORS(app)
 
-@app.route('/api/encode', methods=['GET', 'POST'])
-def get_data():
+@app.route('/api/encode', methods=['POST'])
+def handle_encode():
     if request.method == 'POST':
         if 'image' not in request.files:
             return {'error': 'No image provided'}, 400
@@ -22,9 +24,40 @@ def get_data():
         uploaded_file = request.files['image']
 
         image = Image.open(uploaded_file)
-        grayscale_image = image.convert('L')
+        x = np.array(image) / 255.0
+        x = x[:, :, 0:3] # remove 4th channel if present
+        x = x.reshape((1, 64, 64, 3))
+        z = encode(x)
 
-        return {'message': f'Image {uploaded_file.filename} uploaded successfully'}
+        z_list = np.array(z).tolist()
+
+        return jsonify({'encoded_array': z_list})
+    
+@app.route('/api/decode', methods=['POST'])
+def handle_decode():
+    if request.method == 'POST':
+        data = request.get_json()
+        latent_z = np.array(data.get('array', [])).reshape(1, 256)
+
+        y = decode(latent_z)
+        y = np.array(y).reshape(64, 64, 3) * 255.0
+
+        image = Image.fromarray(y.astype('uint8'))
+
+        img_io = BytesIO()
+        image.save(img_io, 'PNG')
+        img_io.seek(0)
+
+        return send_file(img_io, mimetype='image/png', as_attachment=False, download_name='decodedImage.png')
+        
+        # image = Image.open(uploaded_file)
+        # x = np.array(image) / 255.0
+        # x = x.reshape((1, 64, 64, 3))
+        # z = encode(x)
+
+        # z_list = np.array(z).tolist()
+
+        # return jsonify({'encoded_array': z_list})
 
 # @app.before_request
 # def log_request_info():

@@ -1,35 +1,19 @@
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
 // Global settings:
-const breakingThreshold = 200;
+const DIST_TO_WEIGHT_RATIO = 50
+const NUM_NODES = 200
+const ALPHA_DECAY = 0      // 1 - Math.pow(0.001, 1 / 300) default
+const VELOCITY_DECAY = 0.1 // 0.4 default
 
 // Load image data into graph data structure
 const img = new Image();
-img.src = "./data/dogtest-small.png";
+img.src = "./data/dogtest-64.png";
 
-img.onload = () => {
-    // Backend test
-    document.getElementById('fetch-button').addEventListener('click', async() => {
-        try {
-            // Fetch image as a Blob
-            const imgResponse = await fetch(img.src);
-            const blob = await imgResponse.blob();
-
-            // Create FormData and append the Blob
-            const formData = new FormData();
-            formData.append('image', blob, 'face.png');
-
-            // Send POST
-            const response = await fetch('http://127.0.0.1:8000/api/encode', {
-                method: "POST",
-                body: formData,
-            });
-            const result = await response.json();
-            console.log(result);
-        } catch (error) {
-            console.error('Error fetching data:', error);
-        }
-    });
+img.onload = async () => {
+    // Get latent z
+    const latentZ = await encodeImage(img);
+    console.log(latentZ);
 
     // Create a canvas element
     const buffer = document.createElement("canvas");
@@ -44,55 +28,11 @@ img.onload = () => {
     // Draw the image on the buffer
     buffCtx.drawImage(img, 0, 0);
 
-    // Get the pixel data
-    const imageData = buffCtx.getImageData(0, 0, buffer.width, buffer.height);
-    const pixels = imageData.data;
-
-    let nodes = [];
-    for (let i = 0; i < img.width; i++) {
-        nodes.push({"id": `a-${i}`});
-        nodes.push({"id": `b-${i}`});
-    }
-
-    let links = [];
-
-    // Access pixel values
-    for (let i = 0; i < pixels.length; i += 4) {
-        const red = pixels[i];
-        const green = pixels[i + 1];
-        const blue = pixels[i + 2];
-        let grey = 0.299 * red + 0.587 * green + 0.114 * blue;
-
-        let pixelIndex = i / 4;
-        let rowNum = Math.floor(pixelIndex / img.width);
-        let colNum = pixelIndex % img.width;
-
-        if (rowNum === colNum) {
-            continue;
-        }
-
-        let distance = grey;
-
-        // if (distance > breakingThreshold) {
-        //     continue;
-        // }
-
-        if (rowNum > colNum) {
-            links.push({
-                "source": `a-${colNum}`,
-                "target": `a-${rowNum}`,
-                "weight": distance
-            });
-        }
-
-        else if (rowNum < colNum) {
-            links.push({
-                "source": `b-${colNum}`,
-                "target": `b-${rowNum}`,
-                "weight": distance
-            });
-        }
-    }
+    // Set up graph from latents
+    const k = latentZ.length;
+    const graph = generateRandomGraph(NUM_NODES, k, latentZ);
+    let nodes = graph.nodes;
+    let links = graph.links;
 
     // Set up canvas for the resulting image
     const canvas = document.createElement("canvas");
@@ -103,7 +43,7 @@ img.onload = () => {
     canvas.height = img.height;
 
     // Set up the SVG canvas dimensions
-    const width = 500;
+    const width = 700;
     const height = 500;
     const svg = d3.select("#d3-container").append("svg")
         .attr("width", width)
@@ -111,18 +51,20 @@ img.onload = () => {
 
     // Define the simulation
     const simulation = d3.forceSimulation(nodes)
-        .force("link", d3.forceLink(links).id((d) => d.id).distance(link => link.weight))
-        // .force("charge", d3.forceManyBody().strength(10))
+        .force("link", d3.forceLink(links).id((d) => d.id).distance(link => link.weight * DIST_TO_WEIGHT_RATIO))
+        .force("charge", d3.forceManyBody().strength(0))
         .force("center", d3.forceCenter(width / 2, height / 2))
-        .on("tick", ticked);
+        .on("tick", ticked)
+        .alphaDecay(ALPHA_DECAY)
+        .velocityDecay(VELOCITY_DECAY);
 
     // Draw the links
     const link = svg.selectAll(".link")
         .data(links)
         .enter().append("line")
         .attr("class", "link")
-        .attr("stroke-width", d => d.weight / 2000)
-        .attr("stroke", "gray");
+        .attr("stroke-width", 0.55) // d => d.weight / 3
+        .attr("stroke", "grey");
 
     // Draw the nodes
     const node = svg.selectAll(".node")
@@ -130,6 +72,7 @@ img.onload = () => {
         .enter().append("circle")
         .attr("class", "node")
         .attr("r", 4)
+        .attr("fill", "#E0E0E0")
         .call(drag(simulation));
 
     // Update positions on each tick
@@ -142,45 +85,123 @@ img.onload = () => {
         node
             .attr("cx", d => d.x)
             .attr("cy", d => d.y);
+    }
 
-        // Update the canvas pixels with link lengths
-        let imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-        let data = imageData.data;
-        links.forEach(link => {
-            const length = Math.sqrt(
+    function generateRandomGraph(n, k, weights) {
+        if (k > n * (n - 1) / 2) {
+            throw new Error("Too many edges for the number of nodes");
+        }
+
+        if (weights.length !== k) {
+            throw new Error("Length of weights array must be k");
+        }
+    
+        // Create nodes
+        const nodes = Array.from({ length: n }, (_, i) => ({ id: i }));
+
+        let weightIndex = 0;
+    
+        // Create a minimal connected structure (tree) to ensure connectivity
+        const links = [];
+        for (let i = 1; i < n; i++) {
+            const source = i;
+            const target = Math.floor(Math.random() * i); // Connect to a random earlier node
+            links.push({
+                "source": source,
+                "target": target,
+                "weight": weights[weightIndex],
+            });
+            weightIndex++;
+        }
+    
+        // Add random edges to reach exactly k edges
+        const linkSet = new Set(links.map(e => `${e.source}-${e.target}`));
+        while (links.length < k) {
+            const source = Math.floor(Math.random() * n);
+            let target = Math.floor(Math.random() * n);
+            while (source === target || linkSet.has(`${source}-${target}`) || linkSet.has(`${target}-${source}`)) {
+                target = Math.floor(Math.random() * n);
+            }
+            links.push({
+                "source": source,
+                "target": target,
+                "weight": weights[weightIndex]
+            });
+            weightIndex++;
+            linkSet.add(`${source}-${target}`);
+        }
+
+        return {nodes, links};
+    }
+
+    async function encodeImage(img) {
+        try {
+            const imgResponse = await fetch(img.src);
+            const blob = await imgResponse.blob();
+
+            // Create FormData and append the Blob
+            const formData = new FormData();
+            formData.append('image', blob, 'imageToEncode.png');
+            const response = await fetch('http://127.0.0.1:8000/api/encode', {
+                method: "POST",
+                body: formData,
+            });
+            const result = await response.json();
+            const encodedArray = result.encoded_array;
+            return encodedArray[0];
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        }
+    }
+
+
+    // Update the canvas pixels with link lengths (called every 0.05 seconds for 30hz)
+    async function decodeEdgeWeights() {
+        // Get new latent z from lengths of edges
+        let newLatentZ = links.map((link) => (
+            (1 / DIST_TO_WEIGHT_RATIO) *
+            Math.sqrt(
                 Math.pow(link.target.x - link.source.x, 2) +
                 Math.pow(link.target.y - link.source.y, 2)
-              );
-            if (link.target.id.split('-')[0] === 'a') {
-                let rowNum = parseInt(link.target.id.split('-')[1]);
-                let colNum = parseInt(link.source.id.split('-')[1]);
-                let dataIndex = 4 * (rowNum * canvas.width + colNum);
-                let gray = length;
-                data[dataIndex] = gray;
-                data[dataIndex+1] = gray;
-                data[dataIndex+2] = gray;
-                data[dataIndex+3] = 255; // alpha
-            }
-            else if (link.target.id.split('-')[0] === 'b') {
-                let rowNum = parseInt(link.target.id.split('-')[1]);
-                let colNum = parseInt(link.source.id.split('-')[1]);
-                let dataIndex = 4 * (rowNum * canvas.width + colNum);
-                let gray = length;
-                data[dataIndex] = gray;
-                data[dataIndex+1] = gray;
-                data[dataIndex+2] = gray;
-                data[dataIndex+3] = 255; // alpha
-            }
+            )
+        ));
+        // Decode latent z to image
+        try {
+            // Send POST
+            const response = await fetch('http://127.0.0.1:8000/api/decode', {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ array: newLatentZ }),
+            });
+            const blob = await response.blob();
+            const imgURL = URL.createObjectURL(blob);
+            const decodedImg = new Image();
+            decodedImg.src = imgURL;
+            await new Promise((resolve) => (decodedImg.onload = resolve));
+            context.drawImage(decodedImg, 0, 0)
 
-        })
-        context.putImageData(imageData, 0, 0);
+            // let imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            // let data = imageData.data;
+            // context.putImageData(data)
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        }
+    }
+
+    async function periodicDecodeEdgeWeights() {
+        while (true) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+            await decodeEdgeWeights();
+        }
     }
 
     // Dragging functionality
     function drag(simulation) {
         return d3.drag()
             .on("start", event => {
-                if (!event.active) simulation.alphaTarget(0.3).restart();
+                // if (!event.active) simulation.alphaTarget(0.3).restart();
                 event.subject.fx = event.subject.x;
                 event.subject.fy = event.subject.y;
             })
@@ -189,10 +210,13 @@ img.onload = () => {
                 event.subject.fy = event.y;
             })
             .on("end", event => {
-                if (!event.active) simulation.alphaTarget(0);
+                // if (!event.active) simulation.alphaTarget(0);
                 event.subject.fx = null;
                 event.subject.fy = null;
             });
     }
+
+
+    periodicDecodeEdgeWeights();
 
 };

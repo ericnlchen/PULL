@@ -1,3 +1,15 @@
+html {
+    background-color: black;
+}
+
+.headers {
+    color: #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+}
+
 .main-content {
     display: flex;
     align-items: center;
@@ -11,20 +23,31 @@
 }
 
 #canvas-container {
-    width: 250px;
-    height: 250px;
+    width: 200px;
+    height: 200px;
     display: flex;
     justify-content: center;
     image-rendering: pixelated;
+    border-style: solid;
+    border-color: #e0e0e0;
+    border-width: 20px;
 }
 
 #buffer-container {
-    width: 250px;
-    height: 250px;
+    width: 200px;
+    height: 200px;
     display: flex;
     justify-content: center;
     image-rendering: pixelated;
-    filter: grayscale();
+    border-style: solid;
+    border-color: #e0e0e0;
+    border-width: 20px;
 }
 
+.link {
 
+}
+
+.node {
+    
+}
