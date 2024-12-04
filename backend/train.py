@@ -2,8 +2,10 @@ from keras.utils import image_dataset_from_directory
 import requests, zipfile, glob
 import numpy as np
 from keras import layers, models, Sequential
+from keras.preprocessing.image import load_img, img_to_array
 import cv2
 import os
+import time
 
 # Define paths
 dataset_path = './data/tiny-imagenet-200/train'
@@ -63,6 +65,15 @@ decoded = decoder(encoded)
 autoencoder = models.Model(inputs=autoencoder_input, outputs=decoded)
 autoencoder.compile(optimizer='adam', loss='mse')
 
+# Test inference time
+x = img_to_array(load_img('./data/test_img_1.JPEG')).reshape((1, 64, 64, 3))
+x = x / 255.0
+y = autoencoder(x) # warmup
+t0 = time.time()
+y = autoencoder(x)
+t1 = time.time()
+print(f'{t1 - t0} seconds elapsed')
+
 # for batch in train_dataset.take(1):
 #     print(f"Batch shape: {batch.shape}")
 #     print(f"Batch dtype: {batch.dtype}")
@@ -77,4 +88,4 @@ autoencoder.fit(
     epochs=20
 )
 
-autoencoder.save('autoencoder.keras')
+autoencoder.save('autoencoder-v2.keras')

@@ -133,6 +133,6 @@ dist
 data
 
 __pycache__
-myenv
+.myenv
 *.h5
 *.keras

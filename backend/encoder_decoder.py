@@ -3,7 +3,7 @@ from keras.losses import MeanSquaredError
 
 
 # Load the model
-autoencoder = models.load_model('autoencoder.keras', custom_objects={'mse': MeanSquaredError()})
+autoencoder = models.load_model('./models/autoencoder-v1.keras', custom_objects={'mse': MeanSquaredError()})
 
 # Separate encoder from decoder
 encoder = models.Model(inputs=autoencoder.input, outputs=autoencoder.get_layer('sequential').output)
