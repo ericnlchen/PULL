@@ -3,9 +3,14 @@ import requests, zipfile, glob
 import numpy as np
 from keras import layers, models, Sequential
 from keras.preprocessing.image import load_img, img_to_array
+from keras.callbacks import ModelCheckpoint
+from keras.optimizers import Adam
+import tensorflow as tf
 import cv2
 import os
 import time
+
+from attention import AttentionLayer
 
 # Define paths
 dataset_path = './data/tiny-imagenet-200/train'
@@ -25,31 +30,46 @@ train_dataset = train_dataset.map(lambda x: x / 255.0)
 def build_encoder():
     encoder = Sequential([
         layers.Input(shape=(64, 64, 3)),
+        # 64 x 64
+
+        layers.Conv2D(64, (3, 3), activation='relu', padding='same', strides=2),
+        # 32 x 32
+
+        layers.Conv2D(64, (3, 3), activation='relu', padding='same', strides=2),
+        # 16 x 16
+
         layers.Conv2D(32, (3, 3), activation='relu', padding='same'),
-        layers.MaxPooling2D((2, 2)),
-        layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
-        layers.MaxPooling2D((2, 2)),
-        layers.Conv2D(128, (3, 3), activation='relu', padding='same'),
-        layers.MaxPooling2D((2, 2)),
-        layers.Flatten(),
-        layers.Dense(256, activation='relu')
-    ])
+        layers.Conv2D(32, (3, 3), activation='relu', padding='same', strides=2),
+        # 8 x 8
+
+        layers.Conv2D(16, (3, 3), activation='relu', padding='same'),
+        layers.Conv2D(16, (3, 3), activation='relu', padding='same'),
+        # 8 x 8
+
+    ], name="ae_encoder")
     return encoder
 
 # Decoder
 def build_decoder():
     decoder = Sequential([
-        layers.Input(shape=(256,)),
-        layers.Dense(8 * 8 * 128, activation='relu'),
-        layers.Reshape((8, 8, 128)),
-        layers.Conv2DTranspose(128, (3, 3), activation='relu', padding='same'),
-        layers.UpSampling2D((2, 2)),
-        layers.Conv2DTranspose(64, (3, 3), activation='relu', padding='same'),
-        layers.UpSampling2D((2, 2)),
-        layers.Conv2DTranspose(32, (3, 3), activation='relu', padding='same'),
-        layers.UpSampling2D((2, 2)),
-        layers.Conv2D(3, (3, 3), activation='sigmoid', padding='same')
-    ])
+        layers.Input(shape=(8, 8, 16,)),
+        # 8 x 8 x 16
+
+        layers.Conv2D(16, (3, 3), activation='relu', padding='same'),
+        layers.Conv2DTranspose(16, (2, 2), strides=2, activation='relu', padding='same'),
+        # 16 x 16 x 16
+
+        layers.Conv2D(16, (3, 3), activation='relu', padding='same'),
+        layers.Conv2DTranspose(16, (2, 2), strides=2, activation='relu', padding='same'),
+        # 32 x 32 x 16
+
+        layers.Conv2D(3, (3, 3), activation='relu', padding='same'),
+        layers.Conv2DTranspose(3, (2, 2), strides=2, activation='relu', padding='same'),
+        # 64 x 64 x 3
+
+        layers.Conv2D(3, (3, 3), activation='sigmoid', padding='same'),
+
+    ], name="ae_decoder")
     return decoder
 
 # Build encoder and decoder
@@ -61,9 +81,17 @@ autoencoder_input = layers.Input(shape=(64, 64, 3))
 encoded = encoder(autoencoder_input)
 decoded = decoder(encoded)
 
+# SSIM loss
+def SSIMLoss(y_true, y_pred):
+    return 1 - tf.reduce_mean(tf.image.ssim(y_true, y_pred, 1.0))
+
 # Combine into a model
 autoencoder = models.Model(inputs=autoencoder_input, outputs=decoded)
-autoencoder.compile(optimizer='adam', loss='mse')
+optimizer = Adam(learning_rate=0.001)
+autoencoder.compile(optimizer=optimizer, loss=SSIMLoss)
+autoencoder.summary()
+autoencoder.get_layer('ae_encoder').summary()
+autoencoder.get_layer('ae_decoder').summary()
 
 # Test inference time
 x = img_to_array(load_img('./data/test_img_1.JPEG')).reshape((1, 64, 64, 3))
@@ -82,10 +110,20 @@ print(f'{t1 - t0} seconds elapsed')
 # Set labels equal to training examples
 train_dataset = train_dataset.map(lambda x: (x, x))
 
+# Define the checkpoint callback
+checkpoint_callback = ModelCheckpoint(
+    filepath='{epoch:02d}-{loss:.4f}.keras',  # Filepath to save the model
+    save_best_only=False,             # Only save the model with the best validation accuracy
+    monitor='loss',              # Monitor validation loss (or another metric)
+    save_weights_only=False,         # Save the entire model (default: False)
+    verbose=1                        # Print a message when a model is saved
+)
+
 # Train the autoencoder
-autoencoder.fit(
+history = autoencoder.fit(
     train_dataset,
-    epochs=20
+    epochs=10,
+    callbacks=[checkpoint_callback]
 )
 
 autoencoder.save('autoencoder-v2.keras')
