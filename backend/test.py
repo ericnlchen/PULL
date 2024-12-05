@@ -4,11 +4,10 @@ from keras.losses import MeanSquaredError
 from keras.preprocessing.image import load_img, img_to_array
 import matplotlib.pyplot as plt
 import time
-from attention import AttentionLayer
 import tensorflow as tf
 
-def SSIMLoss(y_true, y_pred):
-    return 1 - tf.reduce_mean(tf.image.ssim(y_true, y_pred, 1.0))
+from attention import AttentionLayer
+from ssim import SSIMLoss
 
 # Load the model
 autoencoder = models.load_model('models/autoencoder-v2.keras', custom_objects={'AttentionLayer': AttentionLayer, 'SSIMLoss': SSIMLoss})

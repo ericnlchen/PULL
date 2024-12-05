@@ -23,25 +23,29 @@ html {
 }
 
 #canvas-container {
-    width: 200px;
-    height: 200px;
+    width: 350px;
+    height: 350px;
     display: flex;
     justify-content: center;
     image-rendering: pixelated;
-    border-style: solid;
+    /* border-style: solid;
     border-color: #e0e0e0;
-    border-width: 20px;
+    border-width: 20px; */
 }
 
 #buffer-container {
-    width: 200px;
-    height: 200px;
+    width: 350px;
+    height: 350px;
     display: flex;
     justify-content: center;
     image-rendering: pixelated;
-    border-style: solid;
+    /* border-style: solid;
     border-color: #e0e0e0;
-    border-width: 20px;
+    border-width: 20px; */
+}
+
+#webcam-video {
+    opacity: 0;
 }
 
 .link {

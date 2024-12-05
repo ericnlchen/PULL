@@ -28,8 +28,9 @@ def handle_encode():
         x = x[:, :, 0:3] # remove 4th channel if present
         x = x.reshape((1, 64, 64, 3))
         z = encode(x)
-
-        z_list = np.array(z).tolist()
+        print(z.shape)
+        z = np.array(z).reshape((1, z.shape[1]*z.shape[2]*z.shape[3]))
+        z_list = z.tolist()
 
         return jsonify({'encoded_array': z_list})
     
@@ -37,7 +38,8 @@ def handle_encode():
 def handle_decode():
     if request.method == 'POST':
         data = request.get_json()
-        latent_z = np.array(data.get('array', [])).reshape(1, 256)
+        latent_z = np.array(data.get('array', []))
+        latent_z = latent_z.reshape(1, 8, 8, 16)
 
         y = decode(latent_z)
         y = np.array(y).reshape(64, 64, 3) * 255.0

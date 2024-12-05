@@ -10,6 +10,7 @@ import cv2
 import os
 import time
 
+from ssim import SSIMLoss
 from attention import AttentionLayer
 
 # Define paths
@@ -80,10 +81,6 @@ decoder = build_decoder()
 autoencoder_input = layers.Input(shape=(64, 64, 3))
 encoded = encoder(autoencoder_input)
 decoded = decoder(encoded)
-
-# SSIM loss
-def SSIMLoss(y_true, y_pred):
-    return 1 - tf.reduce_mean(tf.image.ssim(y_true, y_pred, 1.0))
 
 # Combine into a model
 autoencoder = models.Model(inputs=autoencoder_input, outputs=decoded)
