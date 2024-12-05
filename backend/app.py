@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request, send_file
-from flask_cors import CORS, cross_origin
+from flask_cors import CORS
 import logging
-from encoder_decoder import encode, decode
+from encoder_decoder import encode, decode, get_latent_shape, get_input_shape, get_input_shape_no_batch, get_latent_length
 from PIL import Image
 import traceback
 import numpy as np
@@ -26,12 +26,10 @@ def handle_encode():
         image = Image.open(uploaded_file)
         x = np.array(image) / 255.0
         x = x[:, :, 0:3] # remove 4th channel if present
-        x = x.reshape((1, 64, 64, 3))
+        x = x.reshape(get_input_shape())
         z = encode(x)
-        print(z.shape)
-        z = np.array(z).reshape((1, z.shape[1]*z.shape[2]*z.shape[3]))
+        z = np.array(z).reshape((1, get_latent_length()))
         z_list = z.tolist()
-
         return jsonify({'encoded_array': z_list})
     
 @app.route('/api/decode', methods=['POST'])
@@ -39,10 +37,10 @@ def handle_decode():
     if request.method == 'POST':
         data = request.get_json()
         latent_z = np.array(data.get('array', []))
-        latent_z = latent_z.reshape(1, 8, 8, 16)
+        latent_z = latent_z.reshape(get_latent_shape())
 
         y = decode(latent_z)
-        y = np.array(y).reshape(64, 64, 3) * 255.0
+        y = np.array(y).reshape(get_input_shape_no_batch()) * 255.0
 
         image = Image.fromarray(y.astype('uint8'))
 

@@ -1,12 +1,10 @@
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
-//where do i set the weights equal to latent variable values??
-
 // Global settings:
-const DIST_TO_WEIGHT_RATIO = 30;
-const NUM_NODES = 300;
+const DIST_TO_WEIGHT_RATIO = 50;
+const NUM_NODES = 200;
 const ALPHA_DECAY = 0;      // 1 - Math.pow(0.001, 1 / 300) default
-const VELOCITY_DECAY = 0.1; // 0.4 default
+const VELOCITY_DECAY = 0.01; // 0.4 default
 
 async function loadVideo() {
     const videoElement = document.getElementById('webcam-video');
@@ -73,7 +71,7 @@ const svg = d3.select("#d3-container").append("svg")
 // Define the simulation
 const simulation = d3.forceSimulation(nodes)
     .force("link", d3.forceLink(links).id((d) => d.id).distance(link => link.weight * DIST_TO_WEIGHT_RATIO))
-    .force("charge", d3.forceManyBody().strength(0))
+    .force("charge", d3.forceManyBody().strength(-0.1))
     .force("center", d3.forceCenter(width / 2, height / 2))
     .on("tick", ticked)
     .alphaDecay(ALPHA_DECAY)
@@ -111,6 +109,9 @@ function ticked() {
 function generateRandomGraph(n, k, weights) {
     if (k > n * (n - 1) / 2) {
         throw new Error("Too many edges for the number of nodes");
+    }
+    if (k < n - 1) {
+        throw new Error("Too many nodes for the number of edges");
     }
     if (weights.length !== k) {
         throw new Error("Length of weights array must be k");
