@@ -28,8 +28,8 @@ def get_latent_length():
     length = 1
     for d in encoder.output.shape:
         if (d is not None):
-            length += d
-    return d
+            length *= d
+    return length
 
 def get_latent_shape():
     shape = []
