@@ -68,10 +68,13 @@ const svg = d3.select("#d3-container").append("svg")
     .attr("width", width)
     .attr("height", height);
 
+// Add pointer node
+nodes.push({id: 'pointer'});
+
 // Define the simulation
 const simulation = d3.forceSimulation(nodes)
     .force("link", d3.forceLink(links).id((d) => d.id).distance(link => link.weight * DIST_TO_WEIGHT_RATIO))
-    .force("charge", d3.forceManyBody().strength(-0.1))
+    .force("charge", d3.forceManyBody().strength((n) => n.id === 'pointer' ? 50 : 0 ))
     .force("center", d3.forceCenter(width / 2, height / 2))
     .on("tick", ticked)
     .alphaDecay(ALPHA_DECAY)
@@ -87,12 +90,21 @@ const link = svg.selectAll(".link")
 
 // Draw the nodes
 const node = svg.selectAll(".node")
-    .data(nodes)
+    .data(nodes.filter(d => d.id !== 'pointer'))
     .enter().append("circle")
     .attr("class", "node")
     .attr("r", 4)
-    .attr("fill", "#E0E0E0")
-    .call(drag(simulation));
+    .attr("fill", "#E0E0E0");
+    // .call(drag(simulation));
+
+d3.select("#d3-container")
+    .on("pointermove", pointermoved);
+
+function pointermoved(event) {
+    const [x, y] = d3.pointer(event);
+    nodes[nodes.length - 1].fx = x;
+    nodes[nodes.length - 1].fy = y;
+}
 
 // Update positions on each tick
 function ticked() {
@@ -213,24 +225,24 @@ async function periodicDecodeEdgeWeights() {
     }
 }
 
-// Dragging functionality
-function drag(simulation) {
-    return d3.drag()
-        .on("start", event => {
-            // if (!event.active) simulation.alphaTarget(0.3).restart();
-            event.subject.fx = event.subject.x;
-            event.subject.fy = event.subject.y;
-        })
-        .on("drag", event => {
-            event.subject.fx = event.x;
-            event.subject.fy = event.y;
-        })
-        .on("end", event => {
-            // if (!event.active) simulation.alphaTarget(0);
-            event.subject.fx = null;
-            event.subject.fy = null;
-        });
-}
+// // Dragging functionality
+// function drag(simulation) {
+//     return d3.drag()
+//         .on("start", event => {
+//             // if (!event.active) simulation.alphaTarget(0.3).restart();
+//             event.subject.fx = event.subject.x;
+//             event.subject.fy = event.subject.y;
+//         })
+//         .on("drag", event => {
+//             event.subject.fx = event.x;
+//             event.subject.fy = event.y;
+//         })
+//         .on("end", event => {
+//             // if (!event.active) simulation.alphaTarget(0);
+//             event.subject.fx = null;
+//             event.subject.fy = null;
+//         });
+// }
 
 let start;
 async function loop(timestamp) {
