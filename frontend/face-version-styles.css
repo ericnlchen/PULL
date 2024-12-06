@@ -16,6 +16,13 @@ html {
     justify-content: center;
 }
 
+.d3-containers {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
 #d3-container {
     display: flex;
     align-items: center;
@@ -23,8 +30,8 @@ html {
 }
 
 #buffer-container {
-    width: 600px;
-    height: 600px;
+    width: 400px;
+    height: 400px;
     display: flex;
     justify-content: center;
     image-rendering: pixelated;
@@ -35,8 +42,8 @@ html {
 }
 
 #canvas-container {
-    width: 600px;
-    height: 600px;
+    width: 400px;
+    height: 400px;
     display: flex;
     justify-content: center;
     image-rendering: pixelated;

@@ -1,14 +1,12 @@
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
 // Global settings:
-const DIST_TO_WEIGHT_RATIO = 50;
-const NUM_NODES = 1000;
-const ALPHA_DECAY = 0;      // 1 - Math.pow(0.001, 1 / 300) default
-const VELOCITY_DECAY = 0.01; // 0.4 default
-const SPRING_STIFFNESS = 1;
-const SPRING_DAMPING = 0.02;
+const IMAGE_SIZE = 150;
+const LATENT_BAR_MAX = 5;
+const LATENT_BAR_MIN = -5;
 
-let IMAGE_SIZE = 150;
+const PARAM_BAR_MIN = -10;
+const PARAM_BAR_MAX = 10;
 
 async function loadVideo() {
     const videoElement = document.getElementById('webcam-video');
@@ -37,7 +35,6 @@ const [videoElement, buffer] = await loadVideo();
 // Get height and width
 let videoWidth = videoElement.offsetWidth;
 let videoHeight = videoElement.offsetHeight;
-
 videoElement.style.display = 'none';
 
 // Draw video to buffer
@@ -56,6 +53,100 @@ const container = document.getElementById("canvas-container");
 container.appendChild(canvas)
 canvas.width = IMAGE_SIZE;
 canvas.height = IMAGE_SIZE;
+
+function barChart(data, containerId, yMin=LATENT_BAR_MIN, yMax=LATENT_BAR_MAX, interactive=false) {
+    // D3 Bar Chart
+    const width = 1200;
+    const height = 200;
+    const margin = { top: 10, right: 10, bottom: 10, left: 10 };
+    const svg = d3.select(containerId)
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height)
+
+    // Step 4: Define scales
+    const xScale = d3.scaleBand()
+        .domain(data.map((_, i) => i)) // Map each data index to a bar
+        .range([margin.left, width - margin.right])
+        .padding(0.1); // Add space between bars
+
+    const yScale = d3.scaleLinear()
+        .domain([yMin, yMax]) // Account for both positive and negative values
+        .range([height - margin.bottom, margin.top]);
+
+    // Step 5: Draw bars
+    const bars = svg.selectAll(".bar")
+        .data(data)
+        .enter()
+        .append("rect")
+        .attr("class", "bar")
+        .attr("x", (_, i) => xScale(i)) // Set x-position using the index
+        .attr("y", d => (d >= 0 ? yScale(d) : yScale(0))) // Bars start at yScale(0) for negative values
+        .attr("width", xScale.bandwidth()) // Bar width
+        .attr("height", d => Math.abs(yScale(d) - yScale(0))) // Height depends on the distance from yScale(0)
+        .attr("fill", "white");
+
+    if (interactive) {
+        let isTracing = false;
+
+        svg.on("mousedown", function (event) {
+            isTracing = true; // Start tracing
+            const [mouseX, mouseY] = d3.pointer(event);
+            manipulateBars(mouseX, mouseY);
+        })
+        svg.on("mousemove", function (event) {
+            if (isTracing) {
+                const [mouseX, mouseY] = d3.pointer(event);
+                // Update bar heights dynamically as the user moves the mouse
+                manipulateBars(mouseX, mouseY);
+            }
+        });
+        svg.on("mouseup", function () {
+            isTracing = false; // End tracing
+        });
+        svg.on("mouseleave", function() {
+            isTracing = false;
+        })
+    
+        function manipulateBars(mouseX, mouseY) {
+            const mouseValue = yScale.invert(mouseY); // Map mouse Y position to the data value
+            // Adjust each bar's height if the mouse is within its x-domain
+            bars.each(function (d, i) {
+                const barXStart = xScale(i);
+                const barXEnd = barXStart + xScale.bandwidth();
+        
+                // Check if the mouse is over the bar
+                if (mouseX >= barXStart && mouseX <= barXEnd) {
+                    // Update the corresponding data value
+                    data[i] = Math.max(yMin, Math.min(yMax, mouseValue));
+                
+                    // Update the bar's position and height
+                    d3.select(this)
+                        .attr("y", () => (data[i] >= 0 ? yScale(data[i]) : yScale(0)))
+                        .attr("height", () => Math.abs(yScale(data[i]) - yScale(0)));
+                }
+            });
+        }
+    }
+
+    return [svg, yScale];
+}
+
+let params = new Array(latentZ.length).fill(1)
+
+let [latentBarSvg, latentBarYScale] = barChart(latentZ, '#d3-container-0');
+let [paramBarSvg, paramBarYScale] = barChart(params, '#d3-container-1', PARAM_BAR_MIN, PARAM_BAR_MAX, true);
+
+function updateChart(svg, yScale, newData) {
+    // Bind the new data to the bars
+    const bars = svg.selectAll(".bar")
+      .data(newData);
+
+    // Update bars
+    bars
+      .attr("y", d => (d >= 0 ? yScale(d) : yScale(0)))
+      .attr("height", d => Math.abs(yScale(d) - yScale(0)))
+}
 
 async function encodeImage(canvas) {
     try {
@@ -79,7 +170,7 @@ async function encodeImage(canvas) {
 // Update the canvas pixels with link lengths (called every 0.05 seconds for 30hz)
 async function decodeEdgeWeights() {
     // Get new latent z from lengths of edges
-    let newLatentZ = latentZ;
+    let newLatentZ = latentZ.map((elt, index) => elt * params[index]);
     // Decode latent z to image
     try {
         // Send POST
@@ -137,7 +228,7 @@ async function animate() {
             IMAGE_SIZE, IMAGE_SIZE
         );
         latentZ = await encodeImage(buffer);
-
+        updateChart(latentBarSvg, latentBarYScale, latentZ);
     }
 }
 
