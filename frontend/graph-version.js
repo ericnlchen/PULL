@@ -211,7 +211,7 @@ async function encodeImage(canvas) {
         // Create FormData and append the Blob
         const formData = new FormData();
         formData.append('image', blob, 'imageToEncode.png');
-        const response = await fetch('http://127.0.0.1:8000/api/encode', {
+        const response = await fetch('http://127.0.0.1:8000/api/encode-graph', {
             method: "POST",
             body: formData,
         });
@@ -238,7 +238,7 @@ async function decodeEdgeWeights() {
     // Decode latent z to image
     try {
         // Send POST
-        const response = await fetch('http://127.0.0.1:8000/api/decode', {
+        const response = await fetch('http://127.0.0.1:8000/api/decode-graph', {
             method: "POST",
             headers: {
                 'Content-Type': 'application/json'

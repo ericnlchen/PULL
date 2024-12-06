@@ -18,8 +18,8 @@ logger.setLevel(logging.INFO)
 app = Flask(__name__)
 CORS(app)
 
-@app.route('/api/encode', methods=['POST'])
-def handle_encode():
+@app.route('/api/encode-graph', methods=['POST'])
+def handle_encode_graph():
     if request.method == 'POST':
         if 'image' not in request.files:
             return {'error': 'No image provided'}, 400
@@ -31,8 +31,8 @@ def handle_encode():
         latent = latent.tolist()
         return jsonify({'encoded_array': latent})
     
-@app.route('/api/decode', methods=['POST'])
-def handle_decode():
+@app.route('/api/decode-graph', methods=['POST'])
+def handle_decode_graph():
     if request.method == 'POST':
         data = request.get_json()
         latent = np.array(data.get('array', []))
@@ -43,6 +43,30 @@ def handle_decode():
         img_io.seek(0)
         return send_file(img_io, mimetype='image/png', as_attachment=False, download_name='decodedImage.png')
 
+@app.route('/api/encode-face', methods=['POST'])
+def handle_encode_face():
+    if request.method == 'POST':
+        if 'image' not in request.files:
+            return {'error': 'No image provided'}, 400
+        uploaded_file = request.files['image']
+        image = Image.open(uploaded_file)
+        image = np.array(image)
+        image = image[:, :, 0:3] # remove 4th channel if present
+        latent = encode_face(image)
+        latent = latent.tolist()
+        return jsonify({'encoded_array': latent})
+    
+@app.route('/api/decode-face', methods=['POST'])
+def handle_decode_face():
+    if request.method == 'POST':
+        data = request.get_json()
+        latent = np.array(data.get('array', []))
+        recon = decode_face(latent)
+        image = Image.fromarray(recon.astype('uint8'))
+        img_io = BytesIO()
+        image.save(img_io, 'PNG')
+        img_io.seek(0)
+        return send_file(img_io, mimetype='image/png', as_attachment=False, download_name='decodedImage.png')
 # @app.before_request
 # def log_request_info():
 #     logging.info(f"Incoming request: {request.method} {request.path}")
