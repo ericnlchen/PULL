@@ -1,7 +1,10 @@
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 import logging
-from encoder_decoder import encode, decode
+from encode_decode_graph import encode as encode_graph
+from encode_decode_graph import decode as decode_graph
+from encode_decode_face import encode as encode_face
+from encode_decode_face import decode as decode_face
 from PIL import Image
 import traceback
 import numpy as np
@@ -24,7 +27,7 @@ def handle_encode():
         image = Image.open(uploaded_file)
         image = np.array(image)
         image = image[:, :, 0:3] # remove 4th channel if present
-        latent = encode(image)
+        latent = encode_graph(image)
         latent = latent.tolist()
         return jsonify({'encoded_array': latent})
     
@@ -33,7 +36,7 @@ def handle_decode():
     if request.method == 'POST':
         data = request.get_json()
         latent = np.array(data.get('array', []))
-        recon = decode(latent)
+        recon = decode_graph(latent)
         image = Image.fromarray(recon.astype('uint8'))
         img_io = BytesIO()
         image.save(img_io, 'PNG')
