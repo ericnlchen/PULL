@@ -1,12 +1,12 @@
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
 // Global settings:
-const DIST_TO_WEIGHT_RATIO = 50;
-const NUM_NODES = 800;
+const DIST_TO_WEIGHT_RATIO = 20;
+const NUM_NODES = 1020;
 const ALPHA_DECAY = 0;      // 1 - Math.pow(0.001, 1 / 300) default
 const VELOCITY_DECAY = 0.02; // 0.4 default
 const SPRING_STIFFNESS = 2;
-const SPRING_DAMPING = 0.01;
+const SPRING_DAMPING = 0.1;
 
 async function loadVideo() {
     const videoElement = document.getElementById('webcam-video');
@@ -24,7 +24,7 @@ async function loadVideo() {
     videoElement.srcObject = await navigator.mediaDevices.getUserMedia({ video: true });
 
     // Wait for a few seconds to let it initialize
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     return [videoElement, buffer];
 }
