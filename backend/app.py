@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 import logging
-from encoder_decoder import encode, decode, get_latent_shape, get_input_shape, get_input_shape_no_batch, get_latent_length
+from encoder_decoder import encode, decode
 from PIL import Image
 import traceback
 import numpy as np
@@ -20,44 +20,25 @@ def handle_encode():
     if request.method == 'POST':
         if 'image' not in request.files:
             return {'error': 'No image provided'}, 400
-        
         uploaded_file = request.files['image']
-
         image = Image.open(uploaded_file)
-        x = np.array(image) / 255.0
-        x = x[:, :, 0:3] # remove 4th channel if present
-        x = x.reshape(get_input_shape())
-        z = encode(x)
-        z = np.array(z).reshape((1, get_latent_length()))
-        z_list = z.tolist()
-        return jsonify({'encoded_array': z_list})
+        image = np.array(image)
+        image = image[:, :, 0:3] # remove 4th channel if present
+        latent = encode(image)
+        latent = latent.tolist()
+        return jsonify({'encoded_array': latent})
     
 @app.route('/api/decode', methods=['POST'])
 def handle_decode():
     if request.method == 'POST':
         data = request.get_json()
-        latent_z = np.array(data.get('array', []))
-        latent_z = latent_z.reshape(get_latent_shape())
-
-        y = decode(latent_z)
-        y = np.array(y).reshape(get_input_shape_no_batch()) * 255.0
-
-        image = Image.fromarray(y.astype('uint8'))
-
+        latent = np.array(data.get('array', []))
+        recon = decode(latent)
+        image = Image.fromarray(recon.astype('uint8'))
         img_io = BytesIO()
         image.save(img_io, 'PNG')
         img_io.seek(0)
-
         return send_file(img_io, mimetype='image/png', as_attachment=False, download_name='decodedImage.png')
-        
-        # image = Image.open(uploaded_file)
-        # x = np.array(image) / 255.0
-        # x = x.reshape((1, 64, 64, 3))
-        # z = encode(x)
-
-        # z_list = np.array(z).tolist()
-
-        # return jsonify({'encoded_array': z_list})
 
 # @app.before_request
 # def log_request_info():

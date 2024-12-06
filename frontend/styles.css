@@ -23,15 +23,15 @@ html {
 }
 
 #buffer-container {
-    width: 350px;
-    height: 350px;
+    width: 500px;
+    height: 500px;
     display: flex;
     justify-content: center;
     image-rendering: pixelated;
     /* border-style: solid;
     border-color: #e0e0e0;
     border-width: 20px; */
-    display: none;
+    /* display: none; */
 }
 
 #canvas-container {

@@ -136,3 +136,4 @@ __pycache__
 .myenv
 *.h5
 *.keras
+*.pth

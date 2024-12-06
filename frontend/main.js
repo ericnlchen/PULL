@@ -1,12 +1,14 @@
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
 // Global settings:
-const DIST_TO_WEIGHT_RATIO = 20;
-const NUM_NODES = 1020;
+const DIST_TO_WEIGHT_RATIO = 50;
+const NUM_NODES = 100;
 const ALPHA_DECAY = 0;      // 1 - Math.pow(0.001, 1 / 300) default
-const VELOCITY_DECAY = 0.02; // 0.4 default
-const SPRING_STIFFNESS = 2;
-const SPRING_DAMPING = 0.1;
+const VELOCITY_DECAY = 0.4; // 0.4 default
+const SPRING_STIFFNESS = 1;
+const SPRING_DAMPING = 0.5;
+
+let IMAGE_SIZE = 150;
 
 async function loadVideo() {
     const videoElement = document.getElementById('webcam-video');
@@ -17,8 +19,8 @@ async function loadVideo() {
     bufferContainer.appendChild(buffer);
 
     // Set canvas dimensions to match the image
-    buffer.width = 64;
-    buffer.height = 64;
+    buffer.width = IMAGE_SIZE;
+    buffer.height = IMAGE_SIZE;
 
     // Load video
     videoElement.srcObject = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -40,14 +42,12 @@ videoElement.style.display = 'none';
 
 // Draw video to buffer
 const buffCtx = buffer.getContext("2d");
-buffCtx.drawImage(videoElement, 0, 0, 64, 64, 0, 0, 64, 64);
+buffCtx.drawImage(videoElement, 0, 0, IMAGE_SIZE, IMAGE_SIZE, 0, 0, IMAGE_SIZE, IMAGE_SIZE);
 buffCtx.translate(buffer.width, 0);
 buffCtx.scale(-1,1);
 
 // Wait for first frame to be encoded
-const latentZ = await encodeImage(buffer);
-
-console.log(latentZ)
+let latentZ = await encodeImage(buffer);
 
 // Set up the simulation
 const k = latentZ.length;
@@ -60,8 +60,8 @@ const canvas = document.createElement("canvas");
 const context = canvas.getContext("2d", {willReadFrequently: true});
 const container = document.getElementById("canvas-container");
 container.appendChild(canvas)
-canvas.width = 64;
-canvas.height = 64;
+canvas.width = IMAGE_SIZE;
+canvas.height = IMAGE_SIZE;
 
 // Set up the SVG canvas dimensions
 const width = 600;
@@ -112,9 +112,9 @@ function springForce(links, stiffness, damping) {
 
 // Define the simulation
 const simulation = d3.forceSimulation(nodes)
-    // .force("link", d3.forceLink(links).id((d) => d.id).distance(link => link.weight * DIST_TO_WEIGHT_RATIO))
-    .force("spring", springForce(links, SPRING_STIFFNESS, SPRING_DAMPING))
-    .force("charge", d3.forceManyBody().strength(-0.5))
+    .force("link", d3.forceLink(links).id((d) => d.id).distance(link => link.weight * DIST_TO_WEIGHT_RATIO))
+    // .force("spring", springForce(links, SPRING_STIFFNESS, SPRING_DAMPING))
+    // .force("charge", d3.forceManyBody().strength(-0.1))
     // .force("charge", d3.forceManyBody().strength((n) => n.id === 'pointer' ? 50 : 0 ))
     .force("center", d3.forceCenter(width / 2, height / 2))
     .on("tick", ticked)
@@ -227,13 +227,14 @@ async function encodeImage(canvas) {
 // Update the canvas pixels with link lengths (called every 0.05 seconds for 30hz)
 async function decodeEdgeWeights() {
     // Get new latent z from lengths of edges
-    let newLatentZ = links.map((link) => (
-        (1 / DIST_TO_WEIGHT_RATIO) *
-        Math.sqrt(
-            Math.pow(link.target.x - link.source.x, 2) +
-            Math.pow(link.target.y - link.source.y, 2)
-        )
-    ));
+    // let newLatentZ = links.map((link) => (
+    //     (1 / DIST_TO_WEIGHT_RATIO) *
+    //     Math.sqrt(
+    //         Math.pow(link.target.x - link.source.x, 2) +
+    //         Math.pow(link.target.y - link.source.y, 2)
+    //     )
+    // ));
+    let newLatentZ = latentZ;
     // Decode latent z to image
     try {
         // Send POST
@@ -249,7 +250,7 @@ async function decodeEdgeWeights() {
         const decodedImg = new Image();
         decodedImg.src = imgURL;
         await new Promise((resolve) => (decodedImg.onload = resolve));
-        context.drawImage(decodedImg, 0, 0, 64, 64);
+        context.drawImage(decodedImg, 0, 0, IMAGE_SIZE, IMAGE_SIZE);
 
         // let imageData = context.getImageData(0, 0, canvas.width, canvas.height);
         // let data = imageData.data;
@@ -259,9 +260,11 @@ async function decodeEdgeWeights() {
     }
 }
 
-async function periodicDecodeEdgeWeights() {
+async function periodicDecodeEdgeWeights(fps) {
+    let s = 1 / fps;
+    let ms = s * 1000;
     while (true) {
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise(resolve => setTimeout(resolve, ms));
         await decodeEdgeWeights();
     }
 }
@@ -285,31 +288,43 @@ function drag(simulation) {
         });
 }
 
-let start;
-async function loop(timestamp) {
-    if (start === undefined) {
-        start = timestamp;
-    }
-    const elapsed = timestamp - start; // ms
+let fpsInterval, startTime, now, then, elapsed;
 
-    buffCtx.drawImage(
-        videoElement,
-        (videoWidth - videoHeight) / 2, 0,
-        videoHeight, videoHeight,
-        0, 0,
-        64, 64
-    );
-    const latentZ = await encodeImage(buffer);
-
-    // Dynamically update edges of the graph
-    // update link weights
-    links.forEach((link, i) => {
-        link.weight = latentZ[i];
-    })
-    // simulation.force("link").distance(link => link.weight * DIST_TO_WEIGHT_RATIO);
-
-    requestAnimationFrame(loop);
+function startAnimating(fps) {
+    fpsInterval = 1000 / fps;
+    then = Date.now();
+    startTime = then;
+    animate();
 }
 
-requestAnimationFrame(loop);
-periodicDecodeEdgeWeights();
+async function animate() {
+    requestAnimationFrame(animate);
+
+    now = Date.now();
+    elapsed = now - then;
+
+    if (elapsed > fpsInterval) {
+        then = now - (elapsed % fpsInterval);
+
+        // Draw video feed to canvas
+        buffCtx.drawImage(
+            videoElement,
+            (videoWidth - videoHeight) / 2, 0,
+            videoHeight, videoHeight,
+            0, 0,
+            IMAGE_SIZE, IMAGE_SIZE
+        );
+        latentZ = await encodeImage(buffer);
+    
+        // Dynamically update edges of the graph
+        // update link weights
+        links.forEach((link, i) => {
+            link.weight = latentZ[i];
+        })
+        simulation.force("link").distance(link => link.weight * DIST_TO_WEIGHT_RATIO);
+
+    }
+}
+
+startAnimating(10); // fps
+periodicDecodeEdgeWeights(10); // fps
