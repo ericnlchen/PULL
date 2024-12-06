@@ -1,12 +1,12 @@
 from keras import layers, models, Sequential
 from keras.losses import MeanSquaredError
 from attention import AttentionLayer
-from ssim import SSIMLoss
+from ssim import SSIMLoss, SSIM_MSE_Loss
 
 # Load the model
 autoencoder = models.load_model(
-    'models/autoencoder-v2.keras',
-    custom_objects={'AttentionLayer': AttentionLayer, 'SSIMLoss': SSIMLoss}
+    'models/03-0.1987.keras',
+    custom_objects={'AttentionLayer': AttentionLayer, 'SSIMLoss': SSIMLoss, 'SSIM_MSE_Loss': SSIM_MSE_Loss}
 )
 
 # Separate encoder from decoder

@@ -9,28 +9,42 @@ import tensorflow as tf
 import cv2
 import os
 import time
+import matplotlib.pyplot as plt
 
-from ssim import SSIMLoss
+from ssim import SSIMLoss, SSIM_MSE_Loss
 from attention import AttentionLayer
 
-# Define paths
-dataset_path = './data/tiny-imagenet-200/train'
+IMAGE_SIZE = 64
+CELEBA_INITIAL_SHAPE = (218, 178)
 
+# Define paths
+# dataset_path = './data/tiny-imagenet-200/train'
+dataset_path = './data/img_align_celeba'
 # Load train dataset
 train_dataset = image_dataset_from_directory(
     dataset_path,
     label_mode=None,  # Autoencoder doesn't need labels
-    image_size=(64, 64),
+    image_size=CELEBA_INITIAL_SHAPE, # initial size for celebA
     batch_size=64,
     shuffle=True
 )
 
+def crop_square(image):
+    # Assuming the image is taller than it is wide
+    shape = image.shape
+    print(shape)
+    h, w = shape[1], shape[2]
+    offset_h = (h - w) // 2
+    cropped_image = tf.image.crop_to_bounding_box(image, offset_h, 0, w, w)
+    return tf.image.resize(cropped_image, [IMAGE_SIZE, IMAGE_SIZE])
+
+train_dataset = train_dataset.map(lambda x: crop_square(x))
 train_dataset = train_dataset.map(lambda x: x / 255.0)
 
 # Encoder
 def build_encoder():
     encoder = Sequential([
-        layers.Input(shape=(64, 64, 3)),
+        layers.Input(shape=(IMAGE_SIZE, IMAGE_SIZE, 3)),
         # 64 x 64
 
         layers.Conv2D(64, (3, 3), activation='relu', padding='same', strides=2),
@@ -53,7 +67,7 @@ def build_encoder():
 # Decoder
 def build_decoder():
     decoder = Sequential([
-        layers.Input(shape=(8, 8, 16,)),
+        layers.Input(shape=(int(IMAGE_SIZE / 8), int(IMAGE_SIZE / 8), 16,)),
         # 8 x 8 x 16
 
         layers.Conv2D(16, (3, 3), activation='relu', padding='same'),
@@ -78,20 +92,20 @@ encoder = build_encoder()
 decoder = build_decoder()
 
 # Input for the autoencoder
-autoencoder_input = layers.Input(shape=(64, 64, 3))
+autoencoder_input = layers.Input(shape=(IMAGE_SIZE, IMAGE_SIZE, 3))
 encoded = encoder(autoencoder_input)
 decoded = decoder(encoded)
 
 # Combine into a model
 autoencoder = models.Model(inputs=autoencoder_input, outputs=decoded)
 optimizer = Adam(learning_rate=0.001)
-autoencoder.compile(optimizer=optimizer, loss=SSIMLoss)
+autoencoder.compile(optimizer=optimizer, loss=SSIM_MSE_Loss)
 autoencoder.summary()
 autoencoder.get_layer('ae_encoder').summary()
 autoencoder.get_layer('ae_decoder').summary()
 
 # Test inference time
-x = img_to_array(load_img('./data/test_img_1.JPEG')).reshape((1, 64, 64, 3))
+x = img_to_array(load_img('./data/me-test.jpg')).reshape((1, IMAGE_SIZE, IMAGE_SIZE, 3))
 x = x / 255.0
 y = autoencoder(x) # warmup
 t0 = time.time()

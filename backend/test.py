@@ -7,13 +7,13 @@ import time
 import tensorflow as tf
 
 from attention import AttentionLayer
-from ssim import SSIMLoss
+from ssim import SSIMLoss, SSIM_MSE_Loss
 
 # Load the model
-autoencoder = models.load_model('models/autoencoder-v2.keras', custom_objects={'AttentionLayer': AttentionLayer, 'SSIMLoss': SSIMLoss})
+autoencoder = models.load_model('models/03-0.1987.keras', custom_objects={'AttentionLayer': AttentionLayer, 'SSIMLoss': SSIMLoss, 'SSIM_MSE_Loss': SSIM_MSE_Loss})
 
 # Call the model
-x = img_to_array(load_img('./data/test_img_0.JPEG')).reshape((1, 64, 64, 3))
+x = img_to_array(load_img('./data/me-test.jpg')).reshape((1, 64, 64, 3))
 x = x / 255.0
 t0 = time.time()
 y = autoencoder(x)
