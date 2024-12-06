@@ -1,12 +1,12 @@
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
 // Global settings:
-const DIST_TO_WEIGHT_RATIO = 50;
-const NUM_NODES = 1000;
+const DIST_TO_WEIGHT_RATIO = 60;
+const NUM_NODES = 200;
 const ALPHA_DECAY = 0;      // 1 - Math.pow(0.001, 1 / 300) default
 const VELOCITY_DECAY = 0.01; // 0.4 default
-const SPRING_STIFFNESS = 1;
-const SPRING_DAMPING = 0.02;
+const SPRING_STIFFNESS = 0.7;
+const SPRING_DAMPING = 0.06;
 
 let IMAGE_SIZE = 64;
 
@@ -65,7 +65,7 @@ canvas.height = IMAGE_SIZE;
 
 // Set up the SVG canvas dimensions
 const width = 600;
-const height = 500;
+const height = 600;
 const svg = d3.select("#d3-container").append("svg")
     .attr("width", width)
     .attr("height", height);
@@ -114,7 +114,7 @@ function springForce(links, stiffness, damping) {
 const simulation = d3.forceSimulation(nodes)
     // .force("link", d3.forceLink(links).id((d) => d.id).distance(link => link.weight * DIST_TO_WEIGHT_RATIO))
     .force("spring", springForce(links, SPRING_STIFFNESS, SPRING_DAMPING))
-    // .force("charge", d3.forceManyBody().strength(-0.1))
+    .force("charge", d3.forceManyBody().strength(-0.01))
     // .force("charge", d3.forceManyBody().strength((n) => n.id === 'pointer' ? 50 : 0 ))
     .force("center", d3.forceCenter(width / 2, height / 2))
     .on("tick", ticked)
@@ -134,7 +134,7 @@ const node = svg.selectAll(".node")
     .data(nodes.filter(d => d.id !== 'pointer'))
     .enter().append("circle")
     .attr("class", "node")
-    .attr("r", 4)
+    .attr("r", 7)
     .attr("fill", "#E0E0E0")
     .call(drag(simulation));
 
@@ -272,19 +272,23 @@ async function periodicDecodeEdgeWeights(fps) {
 // Dragging functionality
 function drag(simulation) {
     return d3.drag()
-        .on("start", event => {
+        .on("start", function(event) {
             // if (!event.active) simulation.alphaTarget(0.3).restart();
             event.subject.fx = event.subject.x;
             event.subject.fy = event.subject.y;
+            d3.select(this).attr("fill", "red");
+            d3.select(this).node().classList.add("dragging");
         })
-        .on("drag", event => {
+        .on("drag", function(event) {
             event.subject.fx = event.x;
             event.subject.fy = event.y;
         })
-        .on("end", event => {
+        .on("end", function(event) {
             // if (!event.active) simulation.alphaTarget(0);
             event.subject.fx = null;
             event.subject.fy = null;
+            d3.select(this).attr("fill", "#E0E0E0");
+            d3.select(this).node().classList.remove("dragging");
         });
 }
 
@@ -326,5 +330,5 @@ async function animate() {
     }
 }
 
-startAnimating(10); // fps
-periodicDecodeEdgeWeights(10); // fps
+startAnimating(20); // fps
+periodicDecodeEdgeWeights(20); // fps

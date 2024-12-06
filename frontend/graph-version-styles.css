@@ -14,6 +14,7 @@ html {
     display: flex;
     align-items: center;
     justify-content: center;
+    margin-top: 180px;
 }
 
 #d3-container {
@@ -31,15 +32,15 @@ html {
     /* border-style: solid;
     border-color: #e0e0e0;
     border-width: 20px; */
-    /* display: none; */
+    display: none;
 }
 
 #canvas-container {
-    width: 400px;
-    height: 400px;
+    width: 500px;
+    height: 500px;
     display: flex;
     justify-content: center;
-    image-rendering: pixelated;
+    /* image-rendering: pixelated; */
     /* border-style: solid;
     border-color: #e0e0e0;
     border-width: 20px; */
@@ -53,6 +54,15 @@ html {
 
 }
 
-.node {
-    
+.node:hover {
+    fill: red;
+}
+
+.node:active {
+    fill: red;
+    cursor: grabbing;
+}
+
+.dragging {
+
 }

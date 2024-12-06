@@ -55,3 +55,9 @@ html {
 #webcam-video {
     opacity: 0;
 }
+
+button {
+    font-family: 'Courier New', Courier, monospace;
+    background-color: #e0e0e0;
+    font-size: 1.5rem;
+}

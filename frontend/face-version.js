@@ -54,7 +54,7 @@ container.appendChild(canvas)
 canvas.width = IMAGE_SIZE;
 canvas.height = IMAGE_SIZE;
 
-function barChart(data, containerId, yMin=LATENT_BAR_MIN, yMax=LATENT_BAR_MAX, interactive=false) {
+function barChart(data, containerId, yMin=LATENT_BAR_MIN, yMax=LATENT_BAR_MAX, interactive=false, color="white") {
     // D3 Bar Chart
     const width = 1200;
     const height = 200;
@@ -84,7 +84,7 @@ function barChart(data, containerId, yMin=LATENT_BAR_MIN, yMax=LATENT_BAR_MAX, i
         .attr("y", d => (d >= 0 ? yScale(d) : yScale(0))) // Bars start at yScale(0) for negative values
         .attr("width", xScale.bandwidth()) // Bar width
         .attr("height", d => Math.abs(yScale(d) - yScale(0))) // Height depends on the distance from yScale(0)
-        .attr("fill", "white");
+        .attr("fill", color);
 
     if (interactive) {
         let isTracing = false;
@@ -135,7 +135,7 @@ function barChart(data, containerId, yMin=LATENT_BAR_MIN, yMax=LATENT_BAR_MAX, i
 let params = new Array(latentZ.length).fill(1)
 
 let [latentBarSvg, latentBarYScale] = barChart(latentZ, '#d3-container-0');
-let [paramBarSvg, paramBarYScale] = barChart(params, '#d3-container-1', PARAM_BAR_MIN, PARAM_BAR_MAX, true);
+let [paramBarSvg, paramBarYScale] = barChart(params, '#d3-container-1', PARAM_BAR_MIN, PARAM_BAR_MAX, true, '#2bff69');
 
 function updateChart(svg, yScale, newData) {
     // Bind the new data to the bars
@@ -231,6 +231,12 @@ async function animate() {
         updateChart(latentBarSvg, latentBarYScale, latentZ);
     }
 }
+
+const resetButton = document.getElementById("reset-button");
+resetButton.addEventListener('click', () => {
+    params.fill(1);
+    updateChart(paramBarSvg, paramBarYScale, params);
+})
 
 startAnimating(10); // fps
 periodicDecodeEdgeWeights(10); // fps
