@@ -5,7 +5,7 @@ from ssim import SSIMLoss, SSIM_MSE_Loss
 
 # Load the model
 autoencoder = models.load_model(
-    'models/autoencoder-v2.keras',
+    'models/autoencoder-v1.keras',
     custom_objects={'AttentionLayer': AttentionLayer, 'SSIMLoss': SSIMLoss, 'SSIM_MSE_Loss': SSIM_MSE_Loss}
 )
 
